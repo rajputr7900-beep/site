@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Shared Text</title>
+    <style>
+        body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        textarea { width: 100%; height: 200px; margin-bottom: 20px; padding: 10px; box-sizing: border-box; }
+        #output { border: 1px solid #ccc; padding: 10px; min-height: 100px; white-space: pre-wrap; background-color: #f9f9f9; }
+    </style>
+</head>
+<body>
+    <h1>Real-Time Shared Text</h1>
+
+    <textarea id="inputText" placeholder="Type here. Your text will broadcast instantly."></textarea>
+    
+    <h2>Live Output</h2>
+    <div id="output"></div>
+
+    <script>
+        // *** IMPORTANT: Change 'localhost' to the public IP or domain of your running server ***
+        const SERVER_URL = 'ws://localhost:8080';
+
+        const outputDiv = document.getElementById('output');
+        const inputField = document.getElementById('inputText');
+
+        // Establish the WebSocket connection
+        const socket = new WebSocket(SERVER_URL);
+
+        // Event handler for when the connection is successfully opened
+        socket.onopen = function(e) {
+            console.log("[open] Connection established");
+            outputDiv.innerHTML += "Connected to server.\n";
+        };
+
+        // Event handler for receiving messages from the server
+        socket.onmessage = function(event) {
+            // The server broadcasts the full content, so we just replace the output area
+            outputDiv.innerHTML = event.data;
+        };
+
+        // Event handler for a connection error
+        socket.onerror = function(error) {
+            console.error(`[error] ${error.message}`);
+            outputDiv.innerHTML += `\n[ERROR: Could not connect to server. Is the server running at ${SERVER_URL}?]\n`;
+        };
+
+        // Event handler for connection closing
+        socket.onclose = function(event) {
+            if (event.wasClean) {
+                console.log(`[close] Connection closed cleanly, code=${event.code} reason=${event.reason}`);
+            } else {
+                console.log('[close] Connection died');
+            }
+            outputDiv.innerHTML += "\nDisconnected from server.\n";
+        };
+
+        // Event listener for input changes in the text area
+        let sendTimeout;
+        inputField.addEventListener('input', function() {
+            // Use a short delay (e.g., 200ms) to avoid sending a message for every single keypress
+            clearTimeout(sendTimeout);
+            sendTimeout = setTimeout(() => {
+                const textToSend = inputField.value;
+                if (socket.readyState === WebSocket.OPEN) {
+                    socket.send(textToSend);
+                }
+            }, 50); // Send the text 50ms after the user stops typing
+        });
+    </script>
+</body>
+</html>
